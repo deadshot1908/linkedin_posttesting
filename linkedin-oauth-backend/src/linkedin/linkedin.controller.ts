@@ -14,10 +14,10 @@ async getAccessToken(@Query('code') code: string, @Res() res: Response) {
 
   try {
     const token = await this.linkedinService.exchangeCodeForToken(code);
-    console.log('🔐 Access token received:', token.access_token);
+    console.log('🔐 Access token received:', token);
 
     // Redirect to frontend with token in query
-    const redirectUrl = `http://localhost:3000/post?token=${encodeURIComponent(token.access_token)}`;
+    const redirectUrl = `http://localhost:3000/accounts?token=${encodeURIComponent(token.access_token)}`;
     return res.redirect(redirectUrl);
   } catch (error) {
     console.error('❌ Error exchanging code for token:', error);

@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import Layout from '@/components/Layout';
+import { useRouter } from 'next/router';
 
 export default function PostPage() {
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [scheduleDateTime, setScheduleDateTime] = useState('');
+  const router = useRouter();
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    if (token) {
-      setAccessToken(token);
-      localStorage.setItem('linkedin_token', token);
+    const saved = localStorage.getItem('linkedin_token');
+    if (saved) {
+      setAccessToken(saved);
     } else {
-      const saved = localStorage.getItem('linkedin_token');
-      if (saved) setAccessToken(saved);
+      alert('⚠️ Please connect your LinkedIn account first.');
+      router.push('/accounts');
     }
   }, []);
 
@@ -47,32 +48,34 @@ export default function PostPage() {
   };
 
   return (
-    <div style={{ padding: '40px' }}>
-      <h2>✅ Authentication Successful</h2>
+    <Layout>
+      <div style={{ padding: '40px' }}>
+        <h2>Content Box</h2>
 
-      <textarea
-        rows={5}
-        cols={50}
-        placeholder="Write something to post on LinkedIn..."
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-      />
-      <br /><br />
-
-      <button onClick={handleInstantPost}>🚀 Post Now</button>
-
-      <div style={{ marginTop: '20px' }}>
-        <label>Schedule Post: </label><br />
-        <input
-          type="datetime-local"
-          value={scheduleDateTime}
-          onChange={(e) => setScheduleDateTime(e.target.value)}
+        <textarea
+          rows={5}
+          cols={50}
+          placeholder="Write something to post on LinkedIn..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
         />
         <br /><br />
-        <button onClick={handleSchedulePost}>⏰ Schedule Post</button>
-      </div>
 
-      <p style={{ marginTop: '20px', fontWeight: 'bold' }}>{status}</p>
-    </div>
+        <button onClick={handleInstantPost}>🚀 Post Now</button>
+
+        <div style={{ marginTop: '20px' }}>
+          <label>Schedule Post: </label><br />
+          <input
+            type="datetime-local"
+            value={scheduleDateTime}
+            onChange={(e) => setScheduleDateTime(e.target.value)}
+          />
+          <br /><br />
+          <button onClick={handleSchedulePost}>⏰ Schedule Post</button>
+        </div>
+
+        <p style={{ marginTop: '20px', fontWeight: 'bold' }}>{status}</p>
+      </div>
+    </Layout>
   );
 }

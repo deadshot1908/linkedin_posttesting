@@ -24,6 +24,7 @@ export class LinkedInService {
     params.append('client_id', clientId!);
     params.append('client_secret', clientSecret!);
 
+
     const response = await axios.post(
       'https://www.linkedin.com/oauth/v2/accessToken',
       params,
