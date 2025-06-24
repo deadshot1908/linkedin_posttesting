@@ -27,7 +27,7 @@ export default function PostPage() {
         text: message,
       });
       setStatus('✅ Post published successfully!');
-    } catch (err) {
+    } catch (err:any) {
       console.error('Instant post error:', err.response?.data || err.message);
       setStatus('❌ Instant post failed.');
     }
@@ -41,41 +41,54 @@ export default function PostPage() {
         scheduledAt: scheduleDateTime, // ISO datetime string
       });
       setStatus('📅 Post scheduled successfully!');
-    } catch (err) {
+    } catch (err:any) {
       console.error('Schedule post error:', err.response?.data || err.message);
       setStatus('❌ Failed to schedule post.');
     }
   };
 
-  return (
-    <Layout>
-      <div style={{ padding: '40px' }}>
-        <h2>Content Box</h2>
+return (
+  <Layout>
+    <div className="p-8 max-w-3xl mx-auto">
+      <h2 className="text-2xl font-bold text-blue-600 mb-6">📝 Create LinkedIn Post</h2>
 
+      <div className="bg-white shadow-md rounded-lg p-6 mb-6">
         <textarea
           rows={5}
-          cols={50}
           placeholder="Write something to post on LinkedIn..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
+          className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
         />
-        <br /><br />
-
-        <button onClick={handleInstantPost}>🚀 Post Now</button>
-
-        <div style={{ marginTop: '20px' }}>
-          <label>Schedule Post: </label><br />
-          <input
-            type="datetime-local"
-            value={scheduleDateTime}
-            onChange={(e) => setScheduleDateTime(e.target.value)}
-          />
-          <br /><br />
-          <button onClick={handleSchedulePost}>⏰ Schedule Post</button>
-        </div>
-
-        <p style={{ marginTop: '20px', fontWeight: 'bold' }}>{status}</p>
+        <button
+          onClick={handleInstantPost}
+          className="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition"
+        >
+          🚀 Post Now
+        </button>
       </div>
-    </Layout>
-  );
+
+      <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+        <label className="block text-gray-700 font-medium mb-2">📅 Schedule Post</label>
+        <input
+          type="datetime-local"
+          value={scheduleDateTime}
+          onChange={(e) => setScheduleDateTime(e.target.value)}
+          className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <button
+          onClick={handleSchedulePost}
+          className="mt-4 bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700 transition"
+        >
+          ⏰ Schedule Post
+        </button>
+      </div>
+
+      {status && (
+        <p className="text-center text-lg font-semibold mt-4 text-gray-800">{status}</p>
+      )}
+    </div>
+  </Layout>
+);
+
 }

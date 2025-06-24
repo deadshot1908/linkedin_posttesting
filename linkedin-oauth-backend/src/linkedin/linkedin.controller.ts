@@ -2,6 +2,7 @@
 import { Controller, Get, Query, Res, Post, Body } from '@nestjs/common';
 import { Response } from 'express';
 import { LinkedInService } from './linkedin.service';
+import axios from 'axios';
 
 @Controller('auth')
 export class LinkedInController {
@@ -61,4 +62,23 @@ async schedulePost(
   return this.linkedinService.schedulePost(body.access_token, body.text, body.scheduled_time);
 }
 
+
+@Post('linkedin/userinfo')
+async getUserInfo(@Body() body: { access_token: string }) {
+  const { access_token } = body;
+  console.log("access token for user profile",access_token)
+  try {
+    const response = await axios.get('https://api.linkedin.com/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error fetching LinkedIn user info:', error.response?.data || error.message);
+    throw new Error('Failed to fetch LinkedIn user info');
+  }
 }
+}
+
+
