@@ -1,8 +1,9 @@
 // src/linkedin/linkedin.controller.ts
-import { Controller, Get, Query, Res, Post, Body } from '@nestjs/common';
+import { Controller, Get, Query, Res, Post, Body , UploadedFile, UseInterceptors} from '@nestjs/common';
 import { Response } from 'express';
 import { LinkedInService } from './linkedin.service';
 import axios from 'axios';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('auth')
 export class LinkedInController {
@@ -30,7 +31,11 @@ async getAccessToken(@Query('code') code: string, @Res() res: Response) {
 
   // Step 2: Receive post request from frontend
   @Post('linkedin/share')
-  async postToLinkedIn(@Body() body: { access_token: string; text: string }) {
+  @UseInterceptors(FileInterceptor('media'))
+  async postToLinkedIn(
+    @UploadedFile() media: Express.Multer.File,
+    @Body() body: { access_token: string; text: string }
+  ) {
     const { access_token, text } = body;
 
     if (!access_token || !text) {
@@ -42,6 +47,7 @@ async getAccessToken(@Query('code') code: string, @Res() res: Response) {
     }
 
     try {
+      // Call normal post (no media)
       const result = await this.linkedinService.postToLinkedIn(access_token, text);
       return {
         status: 200,
@@ -79,6 +85,78 @@ async getUserInfo(@Body() body: { access_token: string }) {
     throw new Error('Failed to fetch LinkedIn user info');
   }
 }
+
+ @Post('linkedin/share-with-media')
+  @UseInterceptors(FileInterceptor('media'))
+  async shareWithMedia(
+    @UploadedFile() media: Express.Multer.File,
+    @Body()
+    body: {
+      access_token: string;
+      text: string;
+      type: 'IMAGE' | 'VIDEO';
+    }
+  ) {
+    console.log("posting from backned");
+    const { access_token, text, type } = body;
+
+    if (!access_token || !text || !type) {
+      return {
+        status: 400,
+        message: 'Missing required fields: access_token, text, or type',
+      };
+    }
+
+    if (!media) {
+      return {
+        status: 400,
+        message: 'Media file is missing',
+      };
+    }
+
+    try {
+      if (type === 'IMAGE') {
+        console.log("calling shareimage");
+        const result = await this.linkedinService.shareImage(
+          access_token,
+          text,
+          media
+        );
+        console.log(result);
+        return {
+          status: 200,
+          message: 'Image post successful',
+          data: result,
+        };
+      } else if (type === 'VIDEO') {
+        console.log("calling sharevideo");
+        const result = await this.linkedinService.shareVideo(
+          access_token,
+          text,
+          media
+        );
+        console.log(result);
+        return {
+          status: 200,
+          message: 'Video post successful',
+          data: result,
+        };
+      } else {
+        return {
+          status: 400,
+          message: `Unsupported media type: ${type}`,
+        };
+      }
+    } catch (err: any) {
+      console.error(
+        `❌ ${type} post failed:`,
+        err.response?.data || err.message
+      );
+      throw new Error(`${type} post failed`);
+    }
+  }
 }
+
+
 
 

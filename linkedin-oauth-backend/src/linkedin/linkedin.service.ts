@@ -1,4 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+
 import axios from 'axios';
 
 
@@ -7,6 +10,8 @@ import axios from 'axios';
 
 @Injectable()
 export class LinkedInService {
+  constructor(private readonly httpService: HttpService) {}
+
   async exchangeCodeForToken(code: string) {
 
     const clientId = process.env.LINKEDIN_CLIENT_ID;
@@ -100,5 +105,184 @@ schedulePost(accessToken: string, text: string, scheduledTime: string) {
 
   return { success: true, message: 'Post scheduled' };
 }
+async shareImage(
+  accessToken: string,
+  text: string,
+  file: Express.Multer.File,
+) {
+  // Step 1: Get user profile to construct author URN
+  const profileRes = await axios.get('https://api.linkedin.com/v2/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const authorUrn = `urn:li:person:${profileRes.data.sub}`;
+  console.log("author :",authorUrn);
+
+  // Step 2: Register upload
+  const registerRes = await axios.post(
+    'https://api.linkedin.com/v2/assets?action=registerUpload',
+    {
+      registerUploadRequest: {
+        owner: authorUrn,
+        recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
+        serviceRelationships: [
+          {
+            identifier: 'urn:li:userGeneratedContent',
+            relationshipType: 'OWNER',
+          },
+        ],
+        supportedUploadMechanism: ['SYNCHRONOUS_UPLOAD'],
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'X-Restli-Protocol-Version': '2.0.0',
+      },
+    },
+  );
+
+  const uploadUrl =
+    registerRes.data.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
+  const assetUrn = registerRes.data.value.asset;
+  console.log("asseturn :",assetUrn);
+  console.log("uploadurl :",uploadUrl);
+
+  // Step 3: Upload image file to the given URL
+  await axios.put(uploadUrl, file.buffer, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': file.mimetype,
+    },
+  });
+  console.log("image upload done");
+
+  // Step 4: Create LinkedIn post with image
+  const postRes = await axios.post(
+    'https://api.linkedin.com/v2/ugcPosts',
+    {
+      author: authorUrn,
+      lifecycleState: 'PUBLISHED',
+      specificContent: {
+        'com.linkedin.ugc.ShareContent': {
+          shareCommentary: { text },
+          shareMediaCategory: 'IMAGE',
+          media: [
+            {
+              status: 'READY',
+              media: assetUrn,
+            },
+          ],
+        },
+      },
+      visibility: {
+        'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC',
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'X-Restli-Protocol-Version': '2.0.0',
+        'Content-Type': 'application/json',
+      },
+    },
+  );
+
+  return {
+    success: true,
+    postUrn: postRes.data,
+  };
+}
+
+async shareVideo(
+  accessToken: string,
+  text: string,
+  file: Express.Multer.File,
+) {
+  // Step 1: Get LinkedIn profile to get author URN
+  const profileRes = await axios.get('https://api.linkedin.com/v2/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const authorUrn = `urn:li:person:${profileRes.data.sub}`;
+
+  // Step 2: Register upload for video
+  const registerRes = await axios.post(
+    'https://api.linkedin.com/v2/assets?action=registerUpload',
+    {
+      registerUploadRequest: {
+        owner: authorUrn,
+        recipes: ['urn:li:digitalmediaRecipe:feedshare-video'],
+        serviceRelationships: [
+          {
+            relationshipType: 'OWNER',
+            identifier: 'urn:li:userGeneratedContent',
+          },
+        ],
+        supportedUploadMechanism: ['SYNCHRONOUS_UPLOAD'],
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'X-Restli-Protocol-Version': '2.0.0',
+        'Content-Type': 'application/json',
+      },
+    },
+  );
+
+  const uploadUrl =
+    registerRes.data.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
+  const assetUrn = registerRes.data.value.asset;
+  console.log("uploading video on linkedin server");
+
+  // Step 3: Upload video to LinkedIn using the signed URL
+  await axios.put(uploadUrl, file.buffer, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': file.mimetype,
+    },
+    maxBodyLength: Infinity,
+    maxContentLength: Infinity,
+  });
+console.log("upload completed");
+
+
+  // Step 4: Create video post
+  const postRes = await axios.post(
+    'https://api.linkedin.com/v2/ugcPosts',
+    {
+      author: authorUrn,
+      lifecycleState: 'PUBLISHED',
+      specificContent: {
+        'com.linkedin.ugc.ShareContent': {
+          shareCommentary: { text },
+          shareMediaCategory: 'VIDEO',
+          media: [
+            {
+              status: 'READY',
+              media: assetUrn,
+            },
+          ],
+        },
+      },
+      visibility: {
+        'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC',
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'X-Restli-Protocol-Version': '2.0.0',
+        'Content-Type': 'application/json',
+      },
+    },
+  );
+
+  return {
+    success: true,
+    postUrn: postRes.data,
+  };
+}
+
 
 }
