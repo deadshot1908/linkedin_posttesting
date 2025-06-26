@@ -61,12 +61,20 @@ async getAccessToken(@Query('code') code: string, @Res() res: Response) {
   }
 
 
-  @Post('linkedin/schedule')
-async schedulePost(
-  @Body() body: { access_token: string; text: string; scheduled_time: string },
-) {
-  return this.linkedinService.schedulePost(body.access_token, body.text, body.scheduled_time);
-}
+@Post('linkedin/schedule')
+  @UseInterceptors(FileInterceptor('media'))
+  async schedulePost(
+    @UploadedFile() media: Express.Multer.File,
+    @Body()
+    body: {
+      access_token: string;
+      text: string;
+      scheduledAt: string;
+    },
+  ) {
+    const { access_token, text, scheduledAt } = body;
+    return this.linkedinService.schedulePost(access_token, text, media, scheduledAt);
+  }
 
 
 @Post('linkedin/userinfo')

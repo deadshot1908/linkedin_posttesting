@@ -1,4 +1,4 @@
-import { Injectable, HttpException } from '@nestjs/common';
+import { Injectable, HttpException, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
@@ -11,6 +11,7 @@ import axios from 'axios';
 @Injectable()
 export class LinkedInService {
   constructor(private readonly httpService: HttpService) {}
+  private readonly logger = new Logger(LinkedInService.name);
 
   async exchangeCodeForToken(code: string) {
 
@@ -92,19 +93,46 @@ async postToLinkedIn(accessToken: string, text: string) {
   }
 }
 
+async schedulePost(
+    accessToken: string,
+    text: string,
+    media: Express.Multer.File,
+    scheduledAt: string,
+  ) {
+    const delay = new Date(scheduledAt).getTime() - Date.now();
 
-schedulePost(accessToken: string, text: string, scheduledTime: string) {
-  const delay = new Date(scheduledTime).getTime() - Date.now();
-  if (delay <= 0) throw new Error('Scheduled time must be in the future.');
+    if (delay <= 0) {
+      throw new Error('Scheduled time must be in the future.');
+    }
 
-  setTimeout(() => {
-    this.postToLinkedIn(accessToken, text)
-      .then(() => console.log('✅ Scheduled post done'))
-      .catch((err) => console.error('❌ Failed to post scheduled message', err));
-  }, delay);
+    this.logger.log(`⏰ Post scheduled in ${delay / 1000} seconds`);
 
-  return { success: true, message: 'Post scheduled' };
-}
+    setTimeout(async () => {
+      try {
+        if (media) {
+          const fileType = media.mimetype.startsWith('video') ? 'VIDEO' : 'IMAGE';
+          this.logger.log(`🚀 Posting scheduled ${fileType}...`);
+          if (fileType === 'IMAGE') {
+            await this.shareImage(accessToken, text, media);
+          } else {
+            await this.shareVideo(accessToken, text, media);
+          }
+        } else {
+          this.logger.log(`🚀 Posting scheduled text...`);
+          await this.postToLinkedIn(accessToken, text);
+        }
+
+        this.logger.log('✅ Scheduled post completed.');
+      } catch (err) {
+        this.logger.error('❌ Scheduled post failed:', err.message || err);
+      }
+    }, delay);
+
+    return { status: 'Scheduled', scheduledAt };
+  }
+
+
+
 async shareImage(
   accessToken: string,
   text: string,
