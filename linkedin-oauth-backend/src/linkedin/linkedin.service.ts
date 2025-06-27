@@ -1,8 +1,8 @@
 import { Injectable, HttpException, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-
 import axios from 'axios';
+import { AgendaService } from '../agenda/agenda.service';
 
 
 
@@ -10,7 +10,9 @@ import axios from 'axios';
 
 @Injectable()
 export class LinkedInService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(private readonly httpService: HttpService,
+              private readonly agendaService: AgendaService,            
+  ) {}
   private readonly logger = new Logger(LinkedInService.name);
 
   async exchangeCodeForToken(code: string) {
@@ -94,42 +96,28 @@ async postToLinkedIn(accessToken: string, text: string) {
 }
 
 async schedulePost(
-    accessToken: string,
-    text: string,
-    media: Express.Multer.File,
-    scheduledAt: string,
-  ) {
-    const delay = new Date(scheduledAt).getTime() - Date.now();
+  accessToken: string,
+  text: string,
+  media: Express.Multer.File,
+  scheduledAt: string,
+) {
+  const scheduledDate = new Date(scheduledAt);
+  const jobData = {
+    accessToken,
+    text,
+    type: media?.mimetype.startsWith('video') ? 'VIDEO' : 'IMAGE',
+    media: {
+      buffer: media?.buffer.toString('base64'),
+      mimetype: media?.mimetype,
+      originalname: media?.originalname,
+    },
+  };
 
-    if (delay <= 0) {
-      throw new Error('Scheduled time must be in the future.');
-    }
+  await this.agendaService.scheduleJob('linkedin-post', scheduledDate, jobData);
 
-    this.logger.log(`⏰ Post scheduled in ${delay / 1000} seconds`);
-
-    setTimeout(async () => {
-      try {
-        if (media) {
-          const fileType = media.mimetype.startsWith('video') ? 'VIDEO' : 'IMAGE';
-          this.logger.log(`🚀 Posting scheduled ${fileType}...`);
-          if (fileType === 'IMAGE') {
-            await this.shareImage(accessToken, text, media);
-          } else {
-            await this.shareVideo(accessToken, text, media);
-          }
-        } else {
-          this.logger.log(`🚀 Posting scheduled text...`);
-          await this.postToLinkedIn(accessToken, text);
-        }
-
-        this.logger.log('✅ Scheduled post completed.');
-      } catch (err) {
-        this.logger.error('❌ Scheduled post failed:', err.message || err);
-      }
-    }, delay);
-
-    return { status: 'Scheduled', scheduledAt };
-  }
+  this.logger.log(`⏰ Job scheduled with Agenda for ${scheduledDate}`);
+  return { status: 'Scheduled', scheduledAt };
+}
 
 
 
